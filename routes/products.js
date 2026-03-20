@@ -2,6 +2,7 @@ var express = require('express');
 var router = express.Router();
 let slugify = require('slugify')
 let productSchema = require('../schemas/products')
+let inventorySchema = require('../schemas/inventories')
 //mongoose --- mongoDB
 
 /* GET users listing. */
@@ -11,7 +12,7 @@ router.get('/', async function (req, res, next) {
   let maxPrice = req.query.maxPrice ? req.query.maxPrice : 1E4;
   let minPrice = req.query.minPrice ? req.query.minPrice : 0;
   //let categoryName = req.query.category ? req.query.category : '';
-  let data = await productSchema.find({}).populate({ path: 'category',select: 'name images' })
+  let data = await productSchema.find({}).populate({ path: 'category', select: 'name images' })
   let result = data.filter(function (e) {
     return (!e.isDeleted) &&
       e.title.toLowerCase().includes(titleQ.toLowerCase())
@@ -66,7 +67,17 @@ router.post('/', async function (req, res, next) {
       images: req.body.images
     })
     await newObj.save()
-    res.send(newObj);
+
+    // Tự động tạo inventory tương ứng khi tạo product mới
+    let newInventory = new inventorySchema({
+      product: newObj._id,
+      stock: 0,
+      reserved: 0,
+      soldCount: 0
+    })
+    await newInventory.save()
+
+    res.send({ product: newObj, inventory: newInventory });
   } catch (error) {
     res.status(404).send(error.message);
   }
